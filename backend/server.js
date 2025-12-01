@@ -21,17 +21,32 @@ app.use((req, res, next) => {
 // Importar Rutas
 const authRoutes = require('./routes/auth');
 const projectRoutes = require('./routes/projects');
+const userRoutes = require('./routes/users');
+const studioRoutes = require('./routes/studios');
+const accountingRoutes = require('./routes/accounting');
+const taskRoutes = require('./routes/tasks');
+const messageRoutes = require('./routes/messages');
+const supplierRoutes = require('./routes/suppliers');
 
 // Definir Rutas API
 app.use('/api/auth', authRoutes);
-app.use('/api/projects', protect, projectRoutes); // Protegido globalmente
+
+// Rutas Protegidas (Multi-Tenant)
+app.use('/api/projects', protect, projectRoutes);
+app.use('/api/users', protect, userRoutes);
+app.use('/api/studios', protect, studioRoutes);
+app.use('/api/accounting', protect, accountingRoutes);
+app.use('/api/tasks', protect, taskRoutes);
+app.use('/api/messages', protect, messageRoutes);
+app.use('/api/suppliers', protect, supplierRoutes);
 
 // Health Check
 app.get('/health', (req, res) => {
     res.json({ 
         status: 'ok', 
         timestamp: new Date(), 
-        service: 'Vitrus PM Backend Multi-Tenant' 
+        service: 'Vitrus PM Backend Multi-Tenant',
+        version: '2.0.0'
     });
 });
 
