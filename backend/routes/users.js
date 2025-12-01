@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../config/db');
+const bcrypt = require('bcryptjs');
 
 // GET /api/users
 router.get('/', async (req, res) => {
@@ -52,11 +53,15 @@ router.post('/', async (req, res) => {
             return res.status(400).json({ message: 'Faltan campos obligatorios' });
         }
 
-        // Insertar usuario (password debería hashearse en producción)
+        // Hashear contraseña
+        const salt = await bcrypt.genSalt(10);
+        const passwordHash = await bcrypt.hash(password, salt);
+
+        // Insertar usuario
         const [result] = await db.query(
             `INSERT INTO users (email, password_hash, first_name, last_name, role, studio_id) 
              VALUES (?, ?, ?, ?, ?, ?)`,
-            [email, password, first_name, last_name, role, targetStudioId]
+            [email, passwordHash, first_name, last_name, role, targetStudioId]
         );
 
         res.status(201).json({ id: result.insertId, email, first_name, role, studio_id: targetStudioId });

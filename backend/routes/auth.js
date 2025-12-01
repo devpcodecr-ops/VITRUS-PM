@@ -1,12 +1,16 @@
 const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
 const db = require('../config/db');
-// const bcrypt = require('bcryptjs'); // Descomentar en producción
 
 // POST /api/auth/login
 router.post('/login', async (req, res) => {
     const { email, password } = req.body;
+
+    if (!email || !password) {
+        return res.status(400).json({ message: 'Por favor ingrese email y contraseña' });
+    }
 
     try {
         // 1. Buscar usuario
@@ -21,10 +25,17 @@ router.post('/login', async (req, res) => {
 
         const user = users[0];
 
-        // 2. Validar contraseña
-        // En producción: const isMatch = await bcrypt.compare(password, user.password_hash);
-        // Para Demo: validación simple (password hardcoded o comparación directa si no hay hash real en seed)
-        const isMatch = (password === 'password'); 
+        // 2. Validar contraseña usando bcryptjs
+        // Si el hash en BD es un string simple (para demo), comparamos directo.
+        // Si empieza con $, asumimos que es bcrypt.
+        let isMatch = false;
+        
+        if (user.password_hash.startsWith('$')) {
+             isMatch = await bcrypt.compare(password, user.password_hash);
+        } else {
+             // Fallback para datos legacy o seed simple
+             isMatch = (password === user.password_hash);
+        }
 
         if (!isMatch) {
             return res.status(401).json({ message: 'Credenciales inválidas' });
