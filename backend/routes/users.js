@@ -74,4 +74,86 @@ router.post('/', async (req, res) => {
     }
 });
 
+// PUT /api/users/:id
+router.put('/:id', async (req, res) => {
+    try {
+        const userId = req.params.id;
+        const { first_name, last_name, role, is_active, password } = req.body;
+        const { studioId, role: userRole } = req.user;
+
+        // 1. Verificar permisos
+        let queryCheck = 'SELECT id, studio_id FROM users WHERE id = ?';
+        let paramsCheck = [userId];
+
+        if (userRole !== 'admin_global') {
+            // Admin Estudio solo puede editar usuarios de su propio estudio
+            queryCheck += ' AND studio_id = ?';
+            paramsCheck.push(studioId);
+        }
+
+        const [userExists] = await db.query(queryCheck, paramsCheck);
+        if (userExists.length === 0) {
+            return res.status(403).json({ message: 'Usuario no encontrado o sin permisos' });
+        }
+
+        // 2. Construir query de actualización dinámica
+        let updateQuery = 'UPDATE users SET first_name = ?, last_name = ?, role = ?, is_active = ?';
+        let updateParams = [first_name, last_name, role, is_active];
+
+        if (password && password.trim() !== '') {
+            const salt = await bcrypt.genSalt(10);
+            const passwordHash = await bcrypt.hash(password, salt);
+            updateQuery += ', password_hash = ?';
+            updateParams.push(passwordHash);
+        }
+
+        updateQuery += ' WHERE id = ?';
+        updateParams.push(userId);
+
+        await db.query(updateQuery, updateParams);
+        
+        res.json({ message: 'Usuario actualizado correctamente' });
+
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Error actualizando usuario' });
+    }
+});
+
+// DELETE /api/users/:id
+router.delete('/:id', async (req, res) => {
+    try {
+        const userIdToDelete = req.params.id;
+        const { studioId, role, id: currentUserId } = req.user;
+
+        // No borrarse a sí mismo
+        if (parseInt(userIdToDelete) === parseInt(currentUserId)) {
+            return res.status(400).json({ message: 'No puedes eliminar tu propia cuenta' });
+        }
+
+        // 1. Verificar permisos
+        let queryCheck = 'SELECT id FROM users WHERE id = ?';
+        let paramsCheck = [userIdToDelete];
+
+        if (role !== 'admin_global') {
+            queryCheck += ' AND studio_id = ?';
+            paramsCheck.push(studioId);
+        }
+
+        const [userExists] = await db.query(queryCheck, paramsCheck);
+        if (userExists.length === 0) {
+            return res.status(403).json({ message: 'Usuario no encontrado o sin permisos' });
+        }
+
+        // 2. Eliminar
+        await db.query('DELETE FROM users WHERE id = ?', [userIdToDelete]);
+        
+        res.json({ message: 'Usuario eliminado correctamente' });
+
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Error eliminando usuario' });
+    }
+});
+
 module.exports = router;

@@ -5,6 +5,7 @@ import { Login } from './pages/Login';
 import { Dashboard } from './pages/Dashboard';
 import { Projects } from './pages/Projects';
 import { Studios } from './pages/Studios';
+import { Users } from './pages/Users';
 import { getCurrentUser, logout as logoutService } from './services/authService';
 import { User } from './types';
 import { Loader2 } from 'lucide-react';
@@ -62,6 +63,9 @@ const App: React.FC = () => {
                 <Route path="/dashboard" element={<Dashboard user={user!} />} />
                 <Route path="/studios" element={<Studios />} />
                 <Route path="/projects" element={<Projects />} />
+                <Route path="/users" element={<Users />} />
+                {/* Fallback route for 'team' link in sidebar for Studio Admin which maps to users page */}
+                <Route path="/team" element={<Navigate to="/users" replace />} />
                 <Route path="*" element={<Navigate to="/dashboard" replace />} />
               </Routes>
             </Layout>

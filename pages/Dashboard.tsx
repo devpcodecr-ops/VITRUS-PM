@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { User, UserRole } from '../types';
 import { 
   TrendingUp, 
@@ -6,11 +6,13 @@ import {
   DollarSign, 
   Briefcase,
   Activity,
-  Building2
+  Building2,
+  Loader2
 } from 'lucide-react';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area
 } from 'recharts';
+import { getGlobalStats, getStudioStats, GlobalStats } from '../services/dashboardService';
 
 interface DashboardProps {
   user: User;
@@ -19,8 +21,8 @@ interface DashboardProps {
 const StatCard: React.FC<{ 
   title: string; 
   value: string; 
-  trend: string; 
-  trendUp: boolean; 
+  trend?: string; 
+  trendUp?: boolean; 
   icon: React.ElementType;
   color: string;
 }> = ({ title, value, trend, trendUp, icon: Icon, color }) => (
@@ -34,15 +36,18 @@ const StatCard: React.FC<{
         <Icon size={24} className="text-white" />
       </div>
     </div>
-    <div className="mt-4 flex items-center text-sm">
-      <span className={`font-medium ${trendUp ? 'text-success' : 'text-error'}`}>
-        {trend}
-      </span>
-      <span className="text-textMuted ml-2">vs mes anterior</span>
-    </div>
+    {trend && (
+      <div className="mt-4 flex items-center text-sm">
+        <span className={`font-medium ${trendUp ? 'text-success' : 'text-error'}`}>
+          {trend}
+        </span>
+        <span className="text-textMuted ml-2">vs mes anterior</span>
+      </div>
+    )}
   </div>
 );
 
+// Datos de gráfico simulados para visualización (en producción vendrían de endpoints de series de tiempo)
 const chartData = [
   { name: 'Ene', value: 4000 },
   { name: 'Feb', value: 3000 },
@@ -55,6 +60,35 @@ const chartData = [
 
 export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
   const isGlobal = user.role === UserRole.ADMIN_GLOBAL;
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState<any>(null);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        if (isGlobal) {
+          const data = await getGlobalStats();
+          setStats(data);
+        } else {
+          const data = await getStudioStats();
+          setStats(data);
+        }
+      } catch (error) {
+        console.error("Error loading dashboard stats", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchStats();
+  }, [isGlobal]);
+
+  if (loading) {
+    return (
+      <div className="h-64 flex items-center justify-center">
+        <Loader2 className="animate-spin text-primary" size={32} />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8 animate-fade-in">
@@ -66,7 +100,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
           <p className="text-textMuted mt-1">
             {isGlobal 
               ? 'Vista maestra de todos los tenants y métricas de suscripción.' 
-              : `Gestionando Studio ID: ${user.studio_id} | Plan Studio Pro`}
+              : `Gestionando Studio ID: ${user.studio_id} | Visión General`}
           </p>
         </div>
         <div className="bg-white px-4 py-2 rounded-lg border border-gray-200 text-sm font-medium text-textMuted">
@@ -76,35 +110,31 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard 
-          title={isGlobal ? "MRR (Ingresos Recurrentes)" : "Presupuesto Activo"}
-          value={isGlobal ? "$124,500" : "$45,200"}
+          title={isGlobal ? "MRR (Ingresos Recurrentes)" : "Presupuesto Total"}
+          value={`$${(isGlobal ? stats?.mrr : stats?.budget)?.toLocaleString()}`}
           trend="+12.5%"
           trendUp={true}
           icon={DollarSign}
           color="bg-success"
         />
         <StatCard 
-          title={isGlobal ? "Total Estudios (Tenants)" : "Proyectos en Curso"}
-          value={isGlobal ? "124" : "8"}
-          trend={isGlobal ? "+12 nuevos" : "+2 este mes"}
-          trendUp={true}
+          title={isGlobal ? "Estudios Activos" : "Proyectos Totales"}
+          value={isGlobal ? stats?.activeStudios : stats?.projectsCount}
           icon={isGlobal ? Building2 : Briefcase}
           color="bg-primary"
         />
         <StatCard 
-          title={isGlobal ? "Usuarios Totales" : "Tareas Pendientes"}
-          value={isGlobal ? "1,240" : "34"}
-          trend="-2%"
-          trendUp={false}
+          title={isGlobal ? "Usuarios Totales" : "Mi Equipo"}
+          value={isGlobal ? stats?.totalUsers : stats?.usersCount}
+          trend="+2%"
+          trendUp={true}
           icon={Users}
           color="bg-secondary"
         />
         <StatCard 
-          title="Tasa de Eficiencia"
-          value="94%"
-          trend="+1.2%"
-          trendUp={true}
-          icon={isGlobal ? Activity : TrendingUp}
+          title={isGlobal ? "Proyectos Globales" : "Proyectos Activos"}
+          value={isGlobal ? stats?.totalProjects : stats?.activeProjects}
+          icon={Activity}
           color="bg-blue-500"
         />
       </div>
@@ -112,7 +142,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 bg-white p-6 rounded-xl shadow-sm border border-gray-100">
           <h3 className="text-lg font-bold text-textMain mb-6">
-            {isGlobal ? 'Crecimiento de Suscripciones' : 'Avance Financiero de Proyectos'}
+            {isGlobal ? 'Crecimiento de Suscripciones' : 'Actividad Financiera'}
           </h3>
           <div className="h-80">
             <ResponsiveContainer width="100%" height="100%">
@@ -137,7 +167,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
 
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
           <h3 className="text-lg font-bold text-textMain mb-6">
-            {isGlobal ? 'Distribución de Planes' : 'Estado de Tareas'}
+            {isGlobal ? 'Distribución de Planes' : 'Tareas Semanales'}
           </h3>
           <div className="h-80">
             <ResponsiveContainer width="100%" height="100%">
