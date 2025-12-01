@@ -29,15 +29,61 @@ router.post('/', async (req, res) => {
     try {
         const { name, email, plan_id } = req.body;
         
+        if (!name) {
+             return res.status(400).json({ message: 'El nombre es obligatorio' });
+        }
+
         const [result] = await db.query(
             'INSERT INTO studios (name, email, plan_id, subscription_status) VALUES (?, ?, ?, ?)',
             [name, email, plan_id || 1, 'active']
         );
         
-        res.status(201).json({ id: result.insertId, message: 'Estudio creado exitosamente' });
+        // Devolver el estudio creado
+        const [newStudio] = await db.query('SELECT * FROM studios WHERE id = ?', [result.insertId]);
+        res.status(201).json(newStudio[0]);
     } catch (err) {
         console.error(err);
         res.status(500).json({ message: 'Error creando estudio' });
+    }
+});
+
+// PUT /api/studios/:id
+router.put('/:id', async (req, res) => {
+    try {
+        const { name, email, plan_id, subscription_status } = req.body;
+        const studioId = req.params.id;
+
+        await db.query(
+            'UPDATE studios SET name = ?, email = ?, plan_id = ?, subscription_status = ? WHERE id = ?',
+            [name, email, plan_id, subscription_status, studioId]
+        );
+
+        const [updatedStudio] = await db.query('SELECT * FROM studios WHERE id = ?', [studioId]);
+        res.json(updatedStudio[0]);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Error actualizando estudio' });
+    }
+});
+
+// DELETE /api/studios/:id
+router.delete('/:id', async (req, res) => {
+    try {
+        const studioId = req.params.id;
+        
+        // Opcional: Soft delete o validación de dependencias
+        // Por ahora, eliminamos físicamente para el CRUD completo
+        
+        // Primero eliminar dependencias (o configurar ON DELETE CASCADE en DB)
+        // Nota: En producción real, se recomienda soft-delete (is_active = false)
+        await db.query('DELETE FROM users WHERE studio_id = ?', [studioId]);
+        await db.query('DELETE FROM projects WHERE studio_id = ?', [studioId]);
+        await db.query('DELETE FROM studios WHERE id = ?', [studioId]);
+
+        res.json({ message: 'Estudio eliminado correctamente' });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Error eliminando estudio' });
     }
 });
 
