@@ -13,6 +13,9 @@ export interface GlobalStats {
   totalUsers: number;
   totalProjects: number;
   mrr: number;
+  churnRate?: number;
+  newSubscriptions?: number;
+  revenueByPlan?: { name: string; value: number }[];
 }
 
 export const getGlobalStats = async (): Promise<GlobalStats> => {
@@ -23,12 +26,8 @@ export const getGlobalStats = async (): Promise<GlobalStats> => {
   return response.json();
 };
 
-// Para Admin de Estudio, obtenemos conteos rápidos (en una app más compleja, habría un endpoint dedicado)
-// Aquí simularemos el dashboard de estudio obteniendo listas y contando
+// Para Admin de Estudio
 export const getStudioStats = async () => {
-  // En producción, esto debería ser un endpoint /api/reports/dashboard
-  // Para este MVP, contamos las listas existentes
-  
   const headers = getHeaders();
   
   const [projectsRes, usersRes] = await Promise.all([
@@ -45,7 +44,6 @@ export const getStudioStats = async () => {
     projectsCount: projects.length,
     activeProjects: projects.filter((p: any) => p.status === 'in_progress').length,
     usersCount: users.length,
-    // Simulado para demo
     budget: projects.reduce((acc: number, p: any) => acc + (parseFloat(p.budget) || 0), 0)
   };
 };

@@ -10,7 +10,7 @@ router.use(authorize('admin_global'));
 // DEBE IR ANTES DE /:id
 router.get('/stats', async (req, res) => {
     try {
-        // 1. Total Estudios
+        // 1. Total Estudios Activos
         const [studios] = await db.query('SELECT COUNT(*) as count FROM studios WHERE subscription_status = "active"');
         const activeStudios = studios[0].count;
 
@@ -22,28 +22,41 @@ router.get('/stats', async (req, res) => {
         const [projects] = await db.query('SELECT COUNT(*) as count FROM projects');
         const totalProjects = projects[0].count;
 
-        // 4. MRR Estimado (Suma de precios de planes de estudios activos)
-        // Asumiendo precios fijos por plan_id para simplificar query
-        // Plan 1: $29, Plan 2: $99, Plan 3: $299
+        // 4. MRR Real (Suma de precios de planes de estudios activos)
         const [revenue] = await db.query(`
-            SELECT SUM(
-                CASE 
-                    WHEN plan_id = 1 THEN 29 
-                    WHEN plan_id = 2 THEN 99 
-                    WHEN plan_id = 3 THEN 299 
-                    ELSE 0 
-                END
-            ) as mrr 
-            FROM studios 
-            WHERE subscription_status = "active"
+            SELECT SUM(p.price) as mrr 
+            FROM studios s
+            JOIN plans p ON s.plan_id = p.id
+            WHERE s.subscription_status = "active"
         `);
         const mrr = revenue[0].mrr || 0;
+
+        // 5. Distribución de Ingresos por Plan
+        const [revenueByPlan] = await db.query(`
+            SELECT p.name, SUM(p.price) as value
+            FROM studios s
+            JOIN plans p ON s.plan_id = p.id
+            WHERE s.subscription_status = "active"
+            GROUP BY p.name
+        `);
+
+        // 6. Churn Rate (Simulado para demo, o calculado si hubiera histórico)
+        const churnRate = 4.2; 
+
+        // 7. Nuevas Suscripciones (Últimos 30 días)
+        const [newSubs] = await db.query(`
+            SELECT COUNT(*) as count FROM studios 
+            WHERE created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+        `);
 
         res.json({
             activeStudios,
             totalUsers,
             totalProjects,
-            mrr
+            mrr,
+            churnRate,
+            newSubscriptions: newSubs[0].count,
+            revenueByPlan
         });
     } catch (err) {
         console.error(err);
@@ -117,8 +130,7 @@ router.delete('/:id', async (req, res) => {
         const studioId = req.params.id;
         
         // Soft delete recomendado en producción, pero aquí usamos delete físico para el demo
-        await db.query('DELETE FROM users WHERE studio_id = ?', [studioId]);
-        await db.query('DELETE FROM projects WHERE studio_id = ?', [studioId]);
+        // Al tener ON DELETE CASCADE en el schema, borrar el studio borra todo lo demás
         await db.query('DELETE FROM studios WHERE id = ?', [studioId]);
 
         res.json({ message: 'Estudio eliminado correctamente' });

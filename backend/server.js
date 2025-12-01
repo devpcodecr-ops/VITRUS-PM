@@ -27,6 +27,8 @@ const accountingRoutes = require('./routes/accounting');
 const taskRoutes = require('./routes/tasks');
 const messageRoutes = require('./routes/messages');
 const supplierRoutes = require('./routes/suppliers');
+const planRoutes = require('./routes/plans');
+const settingsRoutes = require('./routes/settings');
 
 // Definir Rutas API
 app.use('/api/auth', authRoutes);
@@ -40,13 +42,17 @@ app.use('/api/tasks', protect, taskRoutes);
 app.use('/api/messages', protect, messageRoutes);
 app.use('/api/suppliers', protect, supplierRoutes);
 
+// Rutas Global Admin
+app.use('/api/plans', protect, planRoutes);
+app.use('/api/settings', protect, settingsRoutes);
+
 // Health Check
 app.get('/health', (req, res) => {
     res.json({ 
         status: 'ok', 
         timestamp: new Date(), 
         service: 'Vitrus PM Backend Multi-Tenant',
-        version: '2.0.0'
+        version: '2.1.0'
     });
 });
 

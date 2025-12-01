@@ -6,13 +6,18 @@ import { Dashboard } from './pages/Dashboard';
 import { Projects } from './pages/Projects';
 import { Studios } from './pages/Studios';
 import { Users } from './pages/Users';
+import { Plans } from './pages/Plans';
+import { Settings } from './pages/Settings';
 import { getCurrentUser, logout as logoutService } from './services/authService';
-import { User } from './types';
+import { User, UserRole } from './types';
 import { Loader2 } from 'lucide-react';
 
-const ProtectedRoute: React.FC<{ children: React.ReactNode; user: User | null }> = ({ children, user }) => {
+const ProtectedRoute: React.FC<{ children: React.ReactNode; user: User | null; roleRequired?: UserRole }> = ({ children, user, roleRequired }) => {
   if (!user) {
     return <Navigate to="/login" replace />;
+  }
+  if (roleRequired && user.role !== roleRequired) {
+    return <Navigate to="/dashboard" replace />;
   }
   return <>{children}</>;
 };
@@ -61,11 +66,31 @@ const App: React.FC = () => {
             <Layout user={user!} onLogout={handleLogout}>
               <Routes>
                 <Route path="/dashboard" element={<Dashboard user={user!} />} />
-                <Route path="/studios" element={<Studios />} />
                 <Route path="/projects" element={<Projects />} />
+                <Route path="/tasks" element={<div>Tasks Module Placeholder</div>} />
+                <Route path="/messages" element={<div>Messages Module Placeholder</div>} />
+                
+                {/* Rutas compartidas con permisos internos */}
                 <Route path="/users" element={<Users />} />
-                {/* Fallback route for 'team' link in sidebar for Studio Admin which maps to users page */}
                 <Route path="/team" element={<Navigate to="/users" replace />} />
+                <Route path="/accounting" element={<div>Accounting Module Placeholder</div>} />
+                <Route path="/suppliers" element={<div>Suppliers Module Placeholder</div>} />
+                
+                {/* Rutas exclusivas Admin Global */}
+                <Route path="/studios" element={
+                  <ProtectedRoute user={user} roleRequired={UserRole.ADMIN_GLOBAL}>
+                    <Studios />
+                  </ProtectedRoute>
+                } />
+                <Route path="/plans" element={
+                  <ProtectedRoute user={user} roleRequired={UserRole.ADMIN_GLOBAL}>
+                    <Plans />
+                  </ProtectedRoute>
+                } />
+                
+                {/* Ruta Settings (para ambos, pero con vistas diferentes si se desea) */}
+                <Route path="/settings" element={<Settings />} />
+
                 <Route path="*" element={<Navigate to="/dashboard" replace />} />
               </Routes>
             </Layout>

@@ -11,7 +11,8 @@ import {
   LogOut, 
   Menu,
   X,
-  Building2
+  Building2,
+  ShieldCheck
 } from 'lucide-react';
 import { User, UserRole } from '../types';
 
@@ -36,10 +37,12 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
 
     if (role === UserRole.ADMIN_GLOBAL) {
       return [
+        { id: 'dashboard', path: '/dashboard', label: 'Global Dashboard', icon: LayoutDashboard },
         { id: 'studios', path: '/studios', label: 'Estudios (Tenants)', icon: Building2 },
-        ...common,
+        { id: 'plans', path: '/plans', label: 'Planes', icon: ShieldCheck },
         { id: 'users', path: '/users', label: 'Usuarios Globales', icon: Users },
         { id: 'accounting', path: '/accounting', label: 'Contabilidad Global', icon: FileText },
+        { id: 'settings', path: '/settings', label: 'Configuración', icon: Settings },
       ];
     }
 

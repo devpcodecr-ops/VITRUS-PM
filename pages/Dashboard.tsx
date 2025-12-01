@@ -7,12 +7,15 @@ import {
   Briefcase,
   Activity,
   Building2,
-  Loader2
+  Loader2,
+  UserMinus,
+  PlusCircle,
+  PieChart as PieChartIcon
 } from 'lucide-react';
 import { 
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area, PieChart, Pie, Cell, Legend
 } from 'recharts';
-import { getGlobalStats, getStudioStats, GlobalStats } from '../services/dashboardService';
+import { getGlobalStats, getStudioStats } from '../services/dashboardService';
 
 interface DashboardProps {
   user: User;
@@ -41,13 +44,15 @@ const StatCard: React.FC<{
         <span className={`font-medium ${trendUp ? 'text-success' : 'text-error'}`}>
           {trend}
         </span>
-        <span className="text-textMuted ml-2">vs mes anterior</span>
+        <span className="text-textMuted ml-2">{trendUp ? 'incremento' : 'decremento'}</span>
       </div>
     )}
   </div>
 );
 
-// Datos de gráfico simulados para visualización (en producción vendrían de endpoints de series de tiempo)
+// Colors for charts
+const COLORS = ['#5B4FFF', '#FF6B35', '#10B981', '#F59E0B'];
+
 const chartData = [
   { name: 'Ene', value: 4000 },
   { name: 'Feb', value: 3000 },
@@ -103,11 +108,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
               : `Gestionando Studio ID: ${user.studio_id} | Visión General`}
           </p>
         </div>
-        <div className="bg-white px-4 py-2 rounded-lg border border-gray-200 text-sm font-medium text-textMuted">
-          {new Date().toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-        </div>
       </div>
 
+      {/* KPI Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard 
           title={isGlobal ? "MRR (Ingresos Recurrentes)" : "Presupuesto Total"}
@@ -131,15 +134,40 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
           icon={Users}
           color="bg-secondary"
         />
-        <StatCard 
-          title={isGlobal ? "Proyectos Globales" : "Proyectos Activos"}
-          value={isGlobal ? stats?.totalProjects : stats?.activeProjects}
-          icon={Activity}
-          color="bg-blue-500"
-        />
+        
+        {isGlobal ? (
+             <StatCard 
+              title="Churn Rate (Cancelaciones)"
+              value={`${stats?.churnRate}%`}
+              trend="-0.5%"
+              trendUp={true} // Lower churn is good
+              icon={UserMinus}
+              color="bg-red-500"
+            />
+        ) : (
+            <StatCard 
+              title="Proyectos Activos"
+              value={stats?.activeProjects}
+              icon={Activity}
+              color="bg-blue-500"
+            />
+        )}
       </div>
 
+      {isGlobal && (
+         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+             <StatCard 
+                title="Nuevas Suscripciones (30d)"
+                value={stats?.newSubscriptions || 0}
+                icon={PlusCircle}
+                color="bg-indigo-500"
+              />
+         </div>
+      )}
+
+      {/* Charts Section */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Main Chart */}
         <div className="lg:col-span-2 bg-white p-6 rounded-xl shadow-sm border border-gray-100">
           <h3 className="text-lg font-bold text-textMain mb-6">
             {isGlobal ? 'Crecimiento de Suscripciones' : 'Actividad Financiera'}
@@ -165,22 +193,40 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
           </div>
         </div>
 
+        {/* Secondary Chart */}
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
           <h3 className="text-lg font-bold text-textMain mb-6">
-            {isGlobal ? 'Distribución de Planes' : 'Tareas Semanales'}
+            {isGlobal ? 'Ingresos por Plan' : 'Tareas Semanales'}
           </h3>
           <div className="h-80">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#6B7280'}} hide />
-                <YAxis axisLine={false} tickLine={false} tick={{fill: '#6B7280'}} />
-                <Tooltip 
-                  cursor={{fill: '#F3F4F6'}}
-                  contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'}}
-                />
-                <Bar dataKey="value" fill="#FF6B35" radius={[4, 4, 0, 0]} />
-              </BarChart>
+              {isGlobal && stats?.revenueByPlan ? (
+                <PieChart>
+                  <Pie
+                    data={stats.revenueByPlan}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={80}
+                    paddingAngle={5}
+                    dataKey="value"
+                  >
+                    {stats.revenueByPlan.map((entry: any, index: number) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={(value: number) => `$${value.toLocaleString()}`} />
+                  <Legend />
+                </PieChart>
+              ) : (
+                <BarChart data={chartData}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
+                  <XAxis dataKey="name" hide />
+                  <YAxis axisLine={false} tickLine={false} tick={{fill: '#6B7280'}} />
+                  <Tooltip cursor={{fill: '#F3F4F6'}} />
+                  <Bar dataKey="value" fill="#FF6B35" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              )}
             </ResponsiveContainer>
           </div>
         </div>
